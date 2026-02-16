@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include <Wire.h> // I2C Library
 
 void setup()

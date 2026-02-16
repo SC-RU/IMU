@@ -1,23 +1,5 @@
+#include <Arduino.h>
 #include <Wire.h>
-
-void setup()
-{
-  Serial.begin(115200); // Begin serial communication with a 115200 bps baud rate
-  Wire.begin(); // Begin I2C communication
-  while(!Serial); // Wait until connection is secured
-
-  // confAdd(); // Debug point: Confirm the devices address to be 0x68
-  wakeUpIMU(); // Wake up the IMU
-  setAccelFS(); // Default accelerometer sens. to +- 2g
-  setGyroFS(); // Default gyroscope sens. to +- 250 deg/s
-  redNoise(); // Reduce noise
-  // readAccelConfig(); // Debug point: Is ACCEL_CONFIG being defaulted to +-2g or not? (Should be 0x0)
-  // readGyroConfig(); // Debug point: Is GYRO_CONFIG being defaulted to +- 250 deg/s or not? (Should be 0x0)
-  calibrateAccel(); // Calibrate the accelerometer
-  calibrateGyro(); // calibrate the gyroscope
-
-  Serial.println("MPU6050 IMU awake.\n");
-}
 
 // void confAdd() // Confirm the devices address
 // {
@@ -117,6 +99,26 @@ void setGyroFS() // Sets the gyroscope's full-scale range (sensitivity) to +-250
 //   Serial.println();
 // }
 
+void readRawAccel(int16_t &ax, int16_t &ay, int16_t &az) // Gets the raw accelerometer data
+{
+  Wire.beginTransmission(0x68); // Start talking to IMU
+  Wire.write(0x3B); // Write to its ACCEL_XOUT_H register (0x3B) (ax high byte)
+  Wire.endTransmission(false); // Keep in the same bus (repeated START condition)
+
+  Wire.requestFrom(0x68, 6); // Request 6 bytes of data (accelerometer data)
+
+  // Check if the 6 bytes are available. If not, set ax, ay, and az to 0 and skip this reading
+  if (Wire.available() < 6)
+  {
+    ax = ay = az = 0;
+    return;
+  }
+
+  ax = Wire.read() << 8 | Wire.read(); // Read first byte, shift up by 1 byte, and then read 2nd byte. This is the 16-bit data of ax
+  ay = Wire.read() << 8 | Wire.read();
+  az = Wire.read() << 8 | Wire.read();
+}
+
 // Global variables to track the accelerometer's biases for ax, ay, and az
 float axBias = 0, ayBias = 0, azBias = 0;
 void calibrateAccel() // Calibrates the accelerometer
@@ -158,6 +160,26 @@ void calibrateAccel() // Calibrates the accelerometer
   // Serial.println();
 }
 
+void readRawGyro(int16_t &gx, int16_t &gy, int16_t &gz) // Gets the raw gyroscope data
+{
+  Wire.beginTransmission(0x68); // Start talking to IMU
+  Wire.write(0x43); // Write to its GYRO_XOUT_H register (0x43) (gx high byte)
+  Wire.endTransmission(false); // Keep in the same bus (repeated START condition)
+
+  Wire.requestFrom(0x68, 6); // Request 6 bytes of data (gyroscope data)
+
+  // Check if the 6 bytes are available. If not, set ax, ay, and az to 0 and skip this reading
+  if (Wire.available() < 6)
+  {
+    gx = gy = gz = 0;
+    return;
+  }
+
+  gx = Wire.read() << 8 | Wire.read(); // Read first byte, shift up by 1 byte, and then read 2nd byte. This is the 16-bit data of ax
+  gy = Wire.read() << 8 | Wire.read();
+  gz = Wire.read() << 8 | Wire.read();
+}
+
 // Global variables to track the gyroscope's biases for gx, gy, and gz
 float gxBias = 0, gyBias = 0, gzBias = 0;
 void calibrateGyro() // calibrates the gyroscope
@@ -194,46 +216,6 @@ void calibrateGyro() // calibrates the gyroscope
   Serial.println();
 }
 
-void readRawAccel(int16_t &ax, int16_t &ay, int16_t &az) // Gets the raw accelerometer data
-{
-  Wire.beginTransmission(0x68); // Start talking to IMU
-  Wire.write(0x3B); // Write to its ACCEL_XOUT_H register (0x3B) (ax high byte)
-  Wire.endTransmission(false); // Keep in the same bus (repeated START condition)
-
-  Wire.requestFrom(0x68, 6); // Request 6 bytes of data (accelerometer data)
-
-  // Check if the 6 bytes are available. If not, set ax, ay, and az to 0 and skip this reading
-  if (Wire.available() < 6)
-  {
-    ax = ay = az = 0;
-    return;
-  }
-
-  ax = Wire.read() << 8 | Wire.read(); // Read first byte, shift up by 1 byte, and then read 2nd byte. This is the 16-bit data of ax
-  ay = Wire.read() << 8 | Wire.read();
-  az = Wire.read() << 8 | Wire.read();
-}
-
-void readRawGyro(int16_t &gx, int16_t &gy, int16_t &gz) // Gets the raw gyroscope data
-{
-  Wire.beginTransmission(0x68); // Start talking to IMU
-  Wire.write(0x43); // Write to its GYRO_XOUT_H register (0x43) (gx high byte)
-  Wire.endTransmission(false); // Keep in the same bus (repeated START condition)
-
-  Wire.requestFrom(0x68, 6); // Request 6 bytes of data (gyroscope data)
-
-  // Check if the 6 bytes are available. If not, set ax, ay, and az to 0 and skip this reading
-  if (Wire.available() < 6)
-  {
-    gx = gy = gz = 0;
-    return;
-  }
-
-  gx = Wire.read() << 8 | Wire.read(); // Read first byte, shift up by 1 byte, and then read 2nd byte. This is the 16-bit data of ax
-  gy = Wire.read() << 8 | Wire.read();
-  gz = Wire.read() << 8 | Wire.read();
-}
-
 float rawAToG(int16_t a, float bias)
 {
   return (a - bias) / 16384.0; // LSB sensitivity (+- 2g range sens.) is 16384 LSB/g (not grams)
@@ -250,6 +232,25 @@ float aGToMs2(float aG)
   
   float mS2 = aG * GRAV;
   return mS2; 
+}
+
+void setup()
+{
+  Serial.begin(115200); // Begin serial communication with a 115200 bps baud rate
+  Wire.begin(); // Begin I2C communication
+  while(!Serial); // Wait until connection is secured
+
+  // confAdd(); // Debug point: Confirm the devices address to be 0x68
+  wakeUpIMU(); // Wake up the IMU
+  setAccelFS(); // Default accelerometer sens. to +- 2g
+  setGyroFS(); // Default gyroscope sens. to +- 250 deg/s
+  redNoise(); // Reduce noise
+  // readAccelConfig(); // Debug point: Is ACCEL_CONFIG being defaulted to +-2g or not? (Should be 0x0)
+  // readGyroConfig(); // Debug point: Is GYRO_CONFIG being defaulted to +- 250 deg/s or not? (Should be 0x0)
+  calibrateAccel(); // Calibrate the accelerometer
+  calibrateGyro(); // calibrate the gyroscope
+
+  Serial.println("MPU6050 IMU awake.\n");
 }
 
 bool hasRan = false;

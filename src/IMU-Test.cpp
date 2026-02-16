@@ -1,19 +1,18 @@
-#include <Arduino.h>
-#include <Wire.h>
+#include "IMU-Test.h"
 
-// void confAdd() // Confirm the devices address
-// {
-//   Wire.beginTransmission(0x68); // Start talking to IMU
-//   Wire.write(0x75); // Write to its WHO_AM_I register (0x75)
-//   Wire.endTransmission(false); // Send a repeated START condition
+void confAdd() // Confirm the devices address
+{
+  Wire.beginTransmission(0x68); // Start talking to IMU
+  Wire.write(0x75); // Write to its WHO_AM_I register (0x75)
+  Wire.endTransmission(false); // Send a repeated START condition
 
-//   Wire.requestFrom(0x68, 1); // Request to read the WHO_AM_I data (device address)
-//   byte add = Wire.read(); // Save the device's address to a variable
+  Wire.requestFrom(0x68, 1); // Request to read the WHO_AM_I data (device address)
+  byte add = Wire.read(); // Save the device's address to a variable
 
-//   // Print the device's address
-//   Serial.print("WHO_AM_I = 0x");
-//   Serial.println(add, HEX);
-// }
+  // Print the device's address
+  Serial.print("WHO_AM_I = 0x");
+  Serial.println(add, HEX);
+}
 
 void wakeUpIMU() // Wakes up the IMU (plus a few more things)
 {
@@ -69,35 +68,35 @@ void setGyroFS() // Sets the gyroscope's full-scale range (sensitivity) to +-250
   Wire.endTransmission(); // Stop talking to IMU
 }
 
-// void readAccelConfig() // Reads the device's accelerometer configuration
-// {
-  // Wire.beginTransmission(0x68); // Start talking to IMU
-  // Wire.write(0x1C); // Write to its ACCEL_CONFIG register (0x1C)
-  // Wire.endTransmission(false); // Send a repeated START condition
+void readAccelConfig() // Reads the device's accelerometer configuration
+{
+  Wire.beginTransmission(0x68); // Start talking to IMU
+  Wire.write(0x1C); // Write to its ACCEL_CONFIG register (0x1C)
+  Wire.endTransmission(false); // Send a repeated START condition
 
-  // Wire.requestFrom(0x68, 1); // Request to read its AFS_SEL data
-  // byte afs = Wire.read(); // Save AFS_SEL data to variable
+  Wire.requestFrom(0x68, 1); // Request to read its AFS_SEL data
+  byte afs = Wire.read(); // Save AFS_SEL data to variable
 
-  // // Print the accelerometer's full scale data (0x00 means a +- 2g range)
-  // Serial.print("ACCEL_CONFIG = 0x");
-  // Serial.println(afs, HEX);
-  // Serial.println();
-// }
+  // Print the accelerometer's full scale data (0x00 means a +- 2g range)
+  Serial.print("ACCEL_CONFIG = 0x");
+  Serial.println(afs, HEX);
+  Serial.println();
+}
 
-// void readGyroConfig() // Reads the device's gyroscope configuration
-// {
-//   Wire.beginTransmission(0x68); // Start talking to IMU
-//   Wire.write(0x1B); // Write to its GYRO_CONFIG register (0x1B)
-//   Wire.endTransmission(false); // Send a repeated START condition
+void readGyroConfig() // Reads the device's gyroscope configuration
+{
+  Wire.beginTransmission(0x68); // Start talking to IMU
+  Wire.write(0x1B); // Write to its GYRO_CONFIG register (0x1B)
+  Wire.endTransmission(false); // Send a repeated START condition
 
-//   Wire.requestFrom(0x68, 1); // Request to read its FS_SEL data
-//   byte fs = Wire.read(); // Save FS_SEL data to variable
+  Wire.requestFrom(0x68, 1); // Request to read its FS_SEL data
+  byte fs = Wire.read(); // Save FS_SEL data to variable
 
-//   // Print the gyroscope's full-scale data (0x00 means a +- 250 deg/s range)
-//   Serial.print("GYRO_CONFIG = 0x");
-//   Serial.println(fs, HEX);
-//   Serial.println();
-// }
+  // Print the gyroscope's full-scale data (0x00 means a +- 250 deg/s range)
+  Serial.print("GYRO_CONFIG = 0x");
+  Serial.println(fs, HEX);
+  Serial.println();
+}
 
 void readRawAccel(int16_t &ax, int16_t &ay, int16_t &az) // Gets the raw accelerometer data
 {

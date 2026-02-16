@@ -232,3 +232,55 @@ float aGToMs2(float aG)
   float mS2 = aG * GRAV;
   return mS2; 
 }
+
+void setup()
+{
+  Serial.begin(115200); // Begin serial communication with a 115200 bps baud rate
+  Wire.begin(); // Begin I2C communication
+  while(!Serial); // Wait until connection is secured
+
+  // confAdd(); // Debug point: Confirm the devices address to be 0x68
+  wakeUpIMU(); // Wake up the IMU
+  setAccelFS(); // Default accelerometer sens. to +- 2g
+  setGyroFS(); // Default gyroscope sens. to +- 250 deg/s
+  redNoise(); // Reduce noise
+  // readAccelConfig(); // Debug point: Is ACCEL_CONFIG being defaulted to +-2g or not? (Should be 0x0)
+  // readGyroConfig(); // Debug point: Is GYRO_CONFIG being defaulted to +- 250 deg/s or not? (Should be 0x0)
+  calibrateAccel(); // Calibrate the accelerometer
+  calibrateGyro(); // calibrate the gyroscope
+
+  Serial.println("MPU6050 IMU awake.\n");
+}
+
+// Sample rate: 100 Hz (10,000 microseconds per loop)
+const uint32_t LOOP_PERIOD = 10000;
+uint32_t lastLoopTime = 0;
+
+void loop()
+{
+  uint32_t currentTime = micros();
+
+  // If the time elapsed since the last loop is less than the sample rate, skip this loop
+  if (currentTime - lastLoopTime < LOOP_PERIOD)
+  {
+    return;
+  }
+  
+  float dt = (currentTime - lastLoopTime) / 1e6f; // Convert time elapsed to seconds
+  lastLoopTime = currentTime; // Update the last loop time
+
+  // ---- 1) Read raw sensor data ----
+  int16_t ax, ay, az;
+  int16_t gx, gy, gz;
+  readRawAccel(ax, ay, az);
+  readRawGyro(gx, gy, gz);
+
+  // ---- 2) Convert to physical units ----
+  float axG = rawAToG(ax, axBias);
+  float ayG = rawAToG(ay, ayBias);
+  float azG = rawAToG(az, azBias);
+
+  float gxDPS = rawGToDPS(gx, gxBias);
+  float gyDPS = rawGToDPS(gy, gyBias);
+  float gzDPS = rawGToDPS(gz, gzBias);
+}

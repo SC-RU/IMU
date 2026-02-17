@@ -204,25 +204,20 @@ void calibrateGyro() // calibrates the gyroscope
   gzBias = sz / (float)N;
 
   // Print the accelerometer's biases
-  Serial.print("gxBias: ");
-  Serial.println(gxBias);
+  // Serial.print("gxBias: ");
+  // Serial.println(gxBias);
   
-  Serial.print("gyBias: ");
-  Serial.println(gyBias);
+  // Serial.print("gyBias: ");
+  // Serial.println(gyBias);
   
-  Serial.print("gzBias: ");
-  Serial.println(gzBias);
-  Serial.println();
+  // Serial.print("gzBias: ");
+  // Serial.println(gzBias);
+  // Serial.println();
 }
 
 float rawAToG(int16_t a, float bias)
 {
   return (a - bias) / 16384.0; // LSB sensitivity (+- 2g range sens.) is 16384 LSB/g (not grams)
-}
-
-float rawGToDPS(int16_t g, float bias)
-{
-  return (g - bias) / 131.0; // LSB sensitivity (+- 250 dps range sens.) is 131 LSB/dps
 }
 
 float aGToMs2(float aG)
@@ -231,6 +226,11 @@ float aGToMs2(float aG)
   
   float mS2 = aG * GRAV;
   return mS2; 
+}
+
+float rawGToDPS(int16_t g, float bias)
+{
+  return (g - bias) / 131.0; // LSB sensitivity (+- 250 dps range sens.) is 131 LSB/dps
 }
 
 void setup()
@@ -252,12 +252,19 @@ void setup()
   Serial.println("MPU6050 IMU awake.\n");
 }
 
+bool hasRan = false;
+
 // Sample rate: 100 Hz (10,000 microseconds per loop)
 const uint32_t LOOP_PERIOD = 10000;
 uint32_t lastLoopTime = 0;
 
 void loop()
 {
+  // if (hasRan)
+  // {
+  //   return;
+  // }
+
   uint32_t currentTime = micros();
 
   // If the time elapsed since the last loop is less than the sample rate, skip this loop
@@ -283,4 +290,6 @@ void loop()
   float gxDPS = rawGToDPS(gx, gxBias);
   float gyDPS = rawGToDPS(gy, gyBias);
   float gzDPS = rawGToDPS(gz, gzBias);
+  
+  // hasRan = true;
 }

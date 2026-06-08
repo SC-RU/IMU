@@ -32,7 +32,7 @@ Current capabilities include:
 
 | MPU6050 | Arduino Nano Every |
 | ------- | ------------------ |
-| VCC     | 5V                 |
+| VCC     | 3V                 |
 | GND     | GND                |
 | SDA     | SDA                |
 | SCL     | SCL                |

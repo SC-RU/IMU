@@ -3,6 +3,13 @@
 
 #include <Arduino.h>
 
+constexpr int CALIBRATION_SAMPLES = 500;
+
+constexpr float ACCEL_SENSITIVITY = 16384.0f;
+constexpr float GYRO_SENSITIVITY  = 131.0f;
+
+constexpr float GRAVITY = 9.80665f;
+
 struct AccelBias
 {
     float x;

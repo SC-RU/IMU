@@ -104,8 +104,14 @@ Attitude calculateAccelAttitude(
  *
  *                 This method provides smooth short-term
  *                 tracking but gradually accumulates drift.
+ * 
+ *                 The previous attitude estimate is passed by const
+ *                 reference because it is a read-only input to the
+ *                 integration step. The function does not modify the
+ *                 caller's object in place; instead, it computes and
+ *                 returns a new Attitude estimate.
  *
- * @param previous Previous attitude estimate.
+ * @param previous Previous attitude estimate, read-only.
  * @param gx       X-axis angular velocity (degrees/second).
  * @param gy       Y-axis angular velocity (degrees/second).
  * @param gz       Z-axis angular velocity (degrees/second).
@@ -114,7 +120,7 @@ Attitude calculateAccelAttitude(
  * @return         Updated gyroscope attitude estimate.
  */
 Attitude updateGyroAttitude(
-    Attitude previous,
+    const Attitude& previous,
     float gx,
     float gy,
     float gz,
@@ -135,16 +141,21 @@ Attitude updateGyroAttitude(
  *
  *              The gyroscope contributes short-term stability,
  *              while the accelerometer corrects long-term drift.
+ * 
+ *              Both input attitudes are passed by const reference because
+ *              they are read-only inputs to the fusion step. The function 
+ *              computes and returns a new fused estimate without modifying
+ *              either caller-owned input object.
  *
- * @param gyro  Gyroscope attitude estimate.
- * @param accel Accelerometer attitude estimate.
- * @param alpha Filter weighting coefficient.
+ * @param gyro  Gyroscope attitude estimate, read-only.
+ * @param accel Accelerometer attitude estimate, read-only.
+ * @param alpha Complementary filter weighting coefficient.
  *
  * @return      Filtered attitude estimate.
  */
 Attitude complementaryFilter(
-    Attitude gyro,
-    Attitude accel,
+    const Attitude& gyro,
+    const Attitude& accel,
     float alpha);
 
 // -----------------------------------------------------------------------------
@@ -160,11 +171,16 @@ Attitude complementaryFilter(
  *
  *                  This provides a stable starting point for
  *                  subsequent gyroscope integration.
+ * 
+ *                  The accelerometer bias is passed by const reference
+ *                  because it is input-only configuration data.
+ *                  The function does not modify the supplied
+ *                  calibration values.
  *
- * @param accelBias Accelerometer calibration data.
+ * @param accelBias Accelerometer calibration data, read-only.
  *
  * @return          Initial attitude estimate.
  */
-Attitude initializeAttitude(AccelBias accelBias);
+Attitude initializeAttitude(const AccelBias& accelBias);
 
 #endif // ATTITUDE_H

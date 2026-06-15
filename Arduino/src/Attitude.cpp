@@ -25,7 +25,7 @@
 
 Attitude calculateAccelAttitude(float ax, float ay, float az)
 {
-    Attitude attitude;
+    Attitude attitude = {};
     
     // These equations estimate orientation
     // from the direction of the measured
@@ -33,7 +33,10 @@ Attitude calculateAccelAttitude(float ax, float ay, float az)
     //
     // The accelerometer provides an
     // absolute reference that does not
-    // accumulate drift.
+    // accumulate drift. However, it is sensitive
+    // to linear acceleration and rapid motion
+    // because the accelerometer measures all applied
+    // acceleration, not gravity alone.
 
     attitude.roll = atan2(-ax, sqrt(ay * ay + az * az)) * RAD_TO_DEG;
 
@@ -47,7 +50,7 @@ Attitude calculateAccelAttitude(float ax, float ay, float az)
 // -----------------------------------------------------------------------------
 
 Attitude updateGyroAttitude(
-    Attitude previous,
+    const Attitude& previous,
     float gx,
     float gy,
     float gz,
@@ -57,11 +60,18 @@ Attitude updateGyroAttitude(
     //
     // angle = previous_angle + rate * dt
     //
+    // The previous attitude estimate is passed by const reference to
+    // make it explicit that this function does not modify the caller's
+    // state in place. Instead, a new Attitude object is created,
+    // updated, and returned.
+    //
     // The current implementation estimates
     // only roll and pitch.
 
-    previous.roll += gy * dt;
-    previous.pitch += gx * dt;
+    Attitude updated = previous;
+
+    updated.roll += gy * dt;
+    updated.pitch += gx * dt;
 
     // gz is currently unused because
     // yaw estimation is not implemented.
@@ -72,7 +82,7 @@ Attitude updateGyroAttitude(
 
     (void)gz;
 
-    return previous;
+    return updated;
 }
 
 // -----------------------------------------------------------------------------
@@ -80,15 +90,18 @@ Attitude updateGyroAttitude(
 // -----------------------------------------------------------------------------
 
 Attitude complementaryFilter(
-    Attitude gyro,
-    Attitude accel,
+    const Attitude& gyro,
+    const Attitude& accel,
     float alpha)
 {
     Attitude filtered;
 
-    // Combine the short-term stability
-    // of the gyroscope with the long-term
-    // reference provided by the accelerometer.
+    // Combine the short-term responsiveness of the gyroscope estimate
+    // with the long-term drift correction provided by the accelerometer.
+    //
+    // The input estimates are passed by const reference because they are
+    // read-only inputs to the fusion step. The filter computes a new
+    // fused attitude estimate without altering either source estimate.
 
     filtered.roll = alpha * gyro.roll + (1.0f - alpha) * accel.roll;
     filtered.pitch = alpha * gyro.pitch + (1.0f - alpha) * accel.pitch;
@@ -100,7 +113,7 @@ Attitude complementaryFilter(
 // Startup attitude initialization
 // -----------------------------------------------------------------------------
 
-Attitude initializeAttitude(AccelBias accelBias)
+Attitude initializeAttitude(const AccelBias& accelBias)
 {
     // Average multiple accelerometer
     // samples to reduce startup noise.

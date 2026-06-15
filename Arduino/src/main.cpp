@@ -1,5 +1,4 @@
 /******************************************************************************
- *
  * @file    main.cpp
  * @brief   Main application entry point for the MPU6050 attitude estimator.
  *
@@ -38,8 +37,9 @@ GyroBias gyroBias   = {};     ///< Gyroscope bias values
 // -----------------------------------------------------------------------------
 
 Attitude accelAttitude    = {};     ///< Accelerometer-based attitude estimate
-Attitude gyroAttitude     = {};     ///< Gyroscope-based attitude estimate
-Attitude filteredAttitude = {};     ///< Complementary filtered attitude estimate
+Attitude gyroOnlyAttitude = {};     ///< Gyroscope-only attitude estimate (for plotting purposes)
+Attitude gyroAttitude     = {};     ///< Corrected attitude estimate used for gyro integration
+Attitude filteredAttitude = {};     ///< Complementary-filtered attitude estimate
 
 // -----------------------------------------------------------------------------
 // Hardware initialization constants
@@ -51,19 +51,69 @@ constexpr int32_t BAUD_RATE           = 115200;   ///< Serial communication baud
 // Timing and filter configuration
 // -----------------------------------------------------------------------------
 
-constexpr float MICROSECONDS_PER_SECOND = 1000000.0f;     /// Number of microseconds in one second (used for time conversion)
-constexpr uint32_t LOOP_PERIOD_US       = 500000;         ///< Loop period in microseconds (500 ms = 2 Hz)
-constexpr float COMPLEMENTARY_ALPHA     = 0.98f;          ///< Complementary filter weighting coefficient (0.98 = 98% gyro, 2% accel)
+constexpr float MICROSECONDS_PER_SECOND         = 1000000.0f;   ///< Number of microseconds in one second (used for time conversion)
+constexpr uint32_t MICROSECONDS_PER_MILLISECOND = 1000;         ///< Number of microseconds in one millisecond (used for time conversion)
+constexpr uint32_t LOOP_PERIOD_US               = 10000;        ///< Loop period in microseconds (10 ms = 100 Hz)
+constexpr float COMPLEMENTARY_ALPHA             = 0.98f;        ///< Complementary filter weighting coefficient (0.98 = 98% gyro, 2% accel)
 
-uint32_t lastLoopTime                   = 0;              ///< Timestamp of the last loop iteration (microseconds)
+uint32_t lastLoopTime                           = 0;            ///< Timestamp of the last loop iteration (microseconds)
+
+// -----------------------------------------------------------------------------
+// Helper functions
+// -----------------------------------------------------------------------------
 
 /**
- * @brief Performs one-time system initialization.
+ * @brief          Prints one telemetry sample in CSV format.
  *
- * Initializes serial communication, I2C communication,
- * configures the MPU6050, performs accelerometer and
- * gyroscope calibration, and initializes the attitude
- * estimator.
+ * @details        Outputs one comma-separated telemetry record containing:
+ *
+ *                 Timestamp in milliseconds,
+ *                 Accelerometer-based roll and pitch,
+ *                 Gyroscope-only roll and pitch,
+ *                 Complementary-filtered roll and pitch.
+ *
+ *                 The Attitude arguments are passed by const reference
+ *                 because this helper only reads the supplied estimates
+ *                 for telemetry output. Passing them this way makes the
+ *                 read-only intent explicit and avoids unnecessary copying
+ *                 of structured data.
+ *
+ *                 This CSV format is intended for host-side tools such as
+ *                 a real-time visualizer.
+ *
+ * @param time_MS  Timestamp in milliseconds.
+ * @param accel    Accelerometer-only attitude estimate.
+ * @param gyro     Gyroscope-only attitude estimate.
+ * @param filtered Complementary-filtered attitude estimate.
+ */
+void printTelemetryCSV(
+  uint32_t time_MS,
+  const Attitude& accel,
+  const Attitude& gyro,
+  const Attitude& filtered)
+{
+  Serial.print(time_MS);
+  Serial.print(",");
+  Serial.print(accel.roll);
+  Serial.print(",");
+  Serial.print(accel.pitch);
+  Serial.print(",");
+  Serial.print(gyro.roll);
+  Serial.print(",");
+  Serial.print(gyro.pitch);
+  Serial.print(",");
+  Serial.print(filtered.roll);
+  Serial.print(",");
+  Serial.println(filtered.pitch);
+}
+
+/**
+ * @brief   Performs one-time system initialization.
+ *
+ * @details Initializes serial communication, I2C communication,
+ *          configures the MPU6050, performs accelerometer and
+ *          gyroscope calibration, and initializes the attitude
+ *          estimator.
  */
 void setup()
 {
@@ -104,6 +154,7 @@ void setup()
   // and initialize loop timing.
   
   accelAttitude       = initializeAttitude(accelBias);
+  gyroOnlyAttitude    = accelAttitude;
   gyroAttitude        = accelAttitude;
   filteredAttitude    = complementaryFilter(gyroAttitude, accelAttitude, COMPLEMENTARY_ALPHA);
 
@@ -117,15 +168,15 @@ void setup()
 // bool hasRan = false;
 
 /**
- * @brief Executes the main attitude estimation loop.
+ * @brief   Executes the main attitude estimation loop.
  *
- * At a fixed sample rate:
- *  - Reads raw sensor data
- *  - Converts measurements into physical units
- *  - Computes accelerometer attitude
- *  - Integrates gyroscope attitude
- *  - Applies complementary filtering
- *  - Outputs telemetry
+ * @details At a fixed sample rate:
+ *          - Reads raw sensor data
+ *          - Converts measurements into physical units
+ *          - Computes accelerometer attitude
+ *          - Integrates gyroscope attitude
+ *          - Applies complementary filtering
+ *          - Outputs telemetry
  */
 void loop()
 {
@@ -140,9 +191,10 @@ void loop()
 
   // Track current time in us and skip loop if sample period has not elapsed.
 
-  uint32_t currentTime = micros();
+  uint32_t currentTime_US = micros();
+  uint32_t currentTime_MS = currentTime_US / MICROSECONDS_PER_MILLISECOND;
 
-  if (currentTime - lastLoopTime < LOOP_PERIOD_US)
+  if (currentTime_US - lastLoopTime < LOOP_PERIOD_US)
   {
     return;
   }
@@ -151,11 +203,11 @@ void loop()
   // Gyroscope integration requires dt in seconds because
   // angular velocity is expressed in degrees per second.
 
-  float dt = (currentTime - lastLoopTime) / MICROSECONDS_PER_SECOND;
+  float dt = (currentTime_US - lastLoopTime) / MICROSECONDS_PER_SECOND;
 
   // Update timestamp for the next iteration.
 
-  lastLoopTime = currentTime;
+  lastLoopTime = currentTime_US;
 
   // -------------------------------------------------------------------------
   // Sensor acquisition & unit conversion
@@ -182,6 +234,10 @@ void loop()
   // apply complementary filter to combine the estimates.
 
   accelAttitude     = calculateAccelAttitude(axG, ayG, azG);
+
+  // Gyro-only attitude estimate for plotting purposes.
+  gyroOnlyAttitude  = updateGyroAttitude(gyroOnlyAttitude, gxDPS, gyDPS, gzDPS, dt);
+
   gyroAttitude      = updateGyroAttitude(gyroAttitude, gxDPS, gyDPS, gzDPS, dt);
   filteredAttitude  = complementaryFilter(gyroAttitude, accelAttitude, COMPLEMENTARY_ALPHA);
   
@@ -218,23 +274,25 @@ void loop()
   // Serial.print(" GZ (dps): ");
   // Serial.println(gzDPS);
   
-  Serial.print("Accel Roll: ");
-  Serial.print(accelAttitude.roll);
+  // Serial.print("Accel Roll: ");
+  // Serial.print(accelAttitude.roll);
 
-  Serial.print(" Gyro Roll: ");
-  Serial.print(gyroAttitude.roll);
+  // Serial.print(" Gyro Roll: ");
+  // Serial.print(gyroAttitude.roll);
 
-  Serial.print(" Filtered Roll: ");
-  Serial.println(filteredAttitude.roll);
+  // Serial.print(" Filtered Roll: ");
+  // Serial.println(filteredAttitude.roll);
 
-  Serial.print("Accel Pitch: ");
-  Serial.print(accelAttitude.pitch);
+  // Serial.print("Accel Pitch: ");
+  // Serial.print(accelAttitude.pitch);
 
-  Serial.print(" Gyro Pitch: ");
-  Serial.print(gyroAttitude.pitch);
+  // Serial.print(" Gyro Pitch: ");
+  // Serial.print(gyroAttitude.pitch);
 
-  Serial.print(" Filtered Pitch: ");
-  Serial.println(filteredAttitude.pitch);
+  // Serial.print(" Filtered Pitch: ");
+  // Serial.println(filteredAttitude.pitch);
+
+  printTelemetryCSV(currentTime_MS, accelAttitude, gyroOnlyAttitude, filteredAttitude);
 
   // hasRan = true;
 }

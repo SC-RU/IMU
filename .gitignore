@@ -1,6 +1,15 @@
-# Arduino
-Arduino/.pio
-Arduino/.vscode/.browse.c_cpp.db*
-Arduino/.vscode/c_cpp_properties.json
-Arduino/.vscode/launch.json
-Arduino/.vscode/ipch
+# =========================================================
+# Arduino / PlatformIO
+# =========================================================
+
+Arduino/.pio/
+Arduino/.vscode/
+
+# =========================================================
+# STM32CubeIDE / Eclipse
+# =========================================================
+
+STM32_Nucleo_F446RE/.settings/
+STM32_Nucleo_F446RE/Debug/
+STM32_Nucleo_F446RE/Release/
+STM32_Nucleo_F446RE/*.launch

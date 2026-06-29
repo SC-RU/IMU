@@ -1,7 +1,7 @@
 /******************************************************************************
- * @file   MPU6050.h
+ * @file   mpu6050.h
  * @brief  Header file for the MPU6050 driver.
- * 
+ *
  * @details This module provides:
  *          - Register-level I2C communication
  *          - Device initialization
@@ -12,65 +12,71 @@
  *
  *          The driver communicates directly with the MPU6050
  *          without relying on third-party libraries.
- * 
+ *
  * @author  Sumedh Camarushi
- * @date    June 10, 2026
+ * @date    June 22, 2026
  ******************************************************************************/
+
+// -----------------------------------------------------------------------------
+// Define to prevent recursive inclusion
+// -----------------------------------------------------------------------------
 
 #ifndef MPU6050_H
 #define MPU6050_H
 
 // -----------------------------------------------------------------------------
-// Include files
+// Includes
 // -----------------------------------------------------------------------------
 
-#include <Arduino.h>
-#include <Wire.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include "stm32f4xx_hal.h"
 
 // -----------------------------------------------------------------------------
 // MPU6050 register definitions
 // -----------------------------------------------------------------------------
 
-constexpr uint8_t MPU6050_ADDR      = 0x68;   ///< Default I2C address
-constexpr uint8_t WHO_AM_I          = 0x75;   ///< Device identification register
-constexpr uint8_t PWR_MGMT_1        = 0x6B;   ///< Primary power management register
-constexpr uint8_t PWR_MGMT_2        = 0x6C;   ///< Secondary power management register
-constexpr uint8_t ACCEL_CONFIG      = 0x1C;   ///< Accelerometer configuration register
-constexpr uint8_t GYRO_CONFIG       = 0x1B;   ///< Gyroscope configuration register
-constexpr uint8_t CONFIG_REG        = 0x1A;   ///< Digital low-pass filter configuration
-constexpr uint8_t SMPRT_DIV         = 0x19;   ///< Sample-rate divider register
-constexpr uint8_t ACCEL_XOUT_H      = 0x3B;   ///< First accelerometer output register
-constexpr uint8_t GYRO_XOUT_H       = 0x43;   ///< First gyroscope output register
+#define MPU6050_ADDR             0x68U					///< Default I2C address
+#define MPU6050_ADDR_HAL         (MPU6050_ADDR << 1)	///< Default I2C address shifted for HAL
+#define WHO_AM_I                 0x75U					///< Device identification register
+#define PWR_MGMT_1               0x6BU					///< Primary power management register
+#define PWR_MGMT_2               0x6CU					///< Secondary power management register
+#define ACCEL_CONFIG             0x1CU					///< Accelerometer configuration register
+#define GYRO_CONFIG              0x1BU					///< Gyroscope configuration register
+#define CONFIG_REG               0x1AU					///< Digital low-pass filter configuration
+#define SMPRT_DIV                0x19U					///< Sample-rate divider register
+#define ACCEL_XOUT_H             0x3BU					///< First accelerometer output register
+#define GYRO_XOUT_H              0x43U					///< First gyroscope output register
 
 // -----------------------------------------------------------------------------
 // MPU6050 configuration values
 // -----------------------------------------------------------------------------
 
 // PWR_MGMT_1
-constexpr uint8_t CLOCK_INTERNAL            = 0x00;   ///< Internal oscillator
-constexpr uint8_t CLOCK_PLL_XGYRO           = 0x01;   ///< PLL clock (X gyro)
+#define CLOCK_INTERNAL           0x00U	///< Internal oscillator
+#define CLOCK_PLL_XGYRO          0x01U	///< PLL clock (X gyro)
 
 // PWR_MGMT_2
-constexpr uint8_t ENABLE_ALL_SENSOR_AXES    = 0x00;   ///< Power management value to enable all axes
+#define ENABLE_ALL_SENSOR_AXES   0x00U	///< Power management value to enable all axes
 
 // ACCEL_CONFIG
-constexpr uint8_t ACCEL_RANGE_2G            = 0x00;   ///< ±2 g range
+#define ACCEL_RANGE_2G           0x00U	///< ±2 g range
 
 // GYRO_CONFIG
-constexpr uint8_t GYRO_RANGE_250DPS         = 0x00;   ///< ±250 deg/s range
+#define GYRO_RANGE_250DPS        0x00U	///< ±250 deg/s range
 
 // CONFIG_REG
-constexpr uint8_t DLPF_BANDWIDTH_44HZ       = 0x03;   ///< DLPF configuration
+#define DLPF_BANDWIDTH_44HZ      0x03U	///< DLPF configuration
 
 // SMPRT_DIV
-constexpr uint8_t SAMPLE_RATE_DIV_100HZ     = 0x09;   ///< 100 Hz output rate
+#define SAMPLE_RATE_DIV_100HZ    0x09U	///< 100 Hz output rate
 
 // -----------------------------------------------------------------------------
 // Driver constants
 // -----------------------------------------------------------------------------
 
-constexpr uint8_t AXIS_DATA_SIZE            = 6;      ///< X,Y,Z (2 bytes each)
-constexpr uint8_t STARTUP_DELAY_MS          = 10;     ///< Hardware settle delay
+#define AXIS_DATA_SIZE           6U		///< X,Y,Z (2 bytes each)
+#define STARTUP_DELAY_MS         10U	///< Hardware settle delay in milliseconds
 
 // -----------------------------------------------------------------------------
 // Sensor data structures
@@ -83,12 +89,13 @@ constexpr uint8_t STARTUP_DELAY_MS          = 10;     ///< Hardware settle delay
  *          reported by the MPU6050 registers before any
  *          calibration or unit conversion.
  */
-struct AccelData
+typedef struct
 {
-    int16_t x;   ///< Raw X-axis acceleration
-    int16_t y;   ///< Raw Y-axis acceleration
-    int16_t z;   ///< Raw Z-axis acceleration
-};
+	int16_t x;	///< Raw X-axis acceleration
+    int16_t y;	///< Raw Y-axis acceleration
+    int16_t z;	///< Raw Z-axis acceleration
+} AccelData;
+
 
 /**
  * @brief   Raw gyroscope measurement.
@@ -97,40 +104,50 @@ struct AccelData
  *          reported by the MPU6050 registers before any
  *          calibration or unit conversion.
  */
-struct GyroData
+typedef struct
 {
-    int16_t x;   ///< Raw X-axis angular velocity
-    int16_t y;   ///< Raw Y-axis angular velocity
-    int16_t z;   ///< Raw Z-axis angular velocity
-};
+	int16_t x;	///< Raw X-axis angular velocity
+    int16_t y;	///< Raw Y-axis angular velocity
+    int16_t z;	///< Raw Z-axis angular velocity
+} GyroData;
 
 // -----------------------------------------------------------------------------
 // Low-level register interface
 // -----------------------------------------------------------------------------
 
 /**
- * @brief       Writes a value to an MPU6050 register.
+ * @brief           Writes a value to an MPU6050 register.
  *
- * @details     Uses the I2C bus to transmit an 8-bit value
- *              to the specified register address.
+ * @details         Uses the I2C bus to transmit an 8-bit value
+ *                  to the specified register address.
  *
- * @param reg   Register address.
- * @param value Value to write.
+ * @param reg:      Register address.
+ * @param value:    Value to write.
+ * 
+ * @retval			HAL status of the I2C write operation.
  */
-void writeRegister(uint8_t reg, uint8_t value);
+HAL_StatusTypeDef writeRegister(uint8_t reg, uint8_t value);
 
 /**
- * @brief     Reads a single MPU6050 register.
+ * @brief           Reads a single MPU6050 register.
  *
- * @param reg Register address.
+ * @param reg:      Register address.
+ * @param value:    Pointer to store the read value.
  *
- * @return    Register contents.
+ * @retval          HAL status of the I2C read operation. The read value is stored in the provided pointer.
  */
-uint8_t readRegister(uint8_t reg);
+HAL_StatusTypeDef readRegister(uint8_t reg, uint8_t *value);
 
 // -----------------------------------------------------------------------------
 // Device initialization
 // -----------------------------------------------------------------------------
+
+/**
+ * @brief       Stores the HAL I2C handle for MPU6050.
+ *
+ * @param hi2c: I2C handle pointer.
+ */
+void MPU6050_SetI2C(I2C_HandleTypeDef *hi2c);
 
 /**
  * @brief   Verifies communication with the MPU6050.
@@ -139,9 +156,9 @@ uint8_t readRegister(uint8_t reg);
  *          the returned value against the expected
  *          device address.
  *
- * @return  true if device detected, false if device not detected.
+ * @retval  true if device detected, false if device not detected.
  */
-bool verifyConnection();
+bool verifyConnection(void);
 
 /**
  * @brief   Initializes the MPU6050.
@@ -152,32 +169,40 @@ bool verifyConnection();
  *          - Accelerometer configuration
  *          - Gyroscope configuration
  *          - Noise reduction configuration
+ * 
+ * @retval  true if initialization successful, false if initialization failed.
  */
-void initializeMPU6050();
+bool initializeMPU6050(void);
 
 /**
  * @brief   Wakes the MPU6050 from sleep mode.
  *
  * @details Configures the internal clock source and
  *          enables all accelerometer and gyroscope axes.
+ * 
+ * @retval  HAL status of the wake-up process.
  */
-void wakeIMU();
+HAL_StatusTypeDef wakeIMU(void);
 
 /**
  * @brief   Configures the accelerometer.
  *
  * @details Sets the full-scale measurement range
  *          to ±2 g.
+ * 
+ * @retval  HAL status of the accelerometer configuration.
  */
-void setAccelConfig();
+HAL_StatusTypeDef setAccelConfig(void);
 
 /**
  * @brief   Configures the gyroscope.
  *
  * @details Sets the full-scale measurement range
  *          to ±250 degrees per second.
+ * 
+ * @retval  HAL status of the gyroscope configuration.
  */
-void setGyroConfig();
+HAL_StatusTypeDef setGyroConfig(void);
 
 /**
  * @brief   Configures the MPU6050 digital filters.
@@ -185,8 +210,10 @@ void setGyroConfig();
  * @details Sets the Digital Low-Pass Filter (DLPF)
  *          and sample-rate divider to reduce
  *          measurement noise.
+ * 
+ * @retval  HAL status of the noise reduction configuration.
  */
-void reduceNoise();
+HAL_StatusTypeDef reduceNoise(void);
 
 // -----------------------------------------------------------------------------
 // Sensor acquisition
@@ -198,9 +225,9 @@ void reduceNoise();
  * @details Retrieves the current X, Y, and Z
  *          accelerometer register values.
  *
- * @return  Raw accelerometer data.
+ * @retval  HAL status of the accelerometer read operation. The read values are stored in the provided pointer.
  */
-AccelData readRawAccel();
+HAL_StatusTypeDef readRawAccel(AccelData *accel);
 
 /**
  * @brief   Reads raw gyroscope measurements.
@@ -208,8 +235,8 @@ AccelData readRawAccel();
  * @details Retrieves the current X, Y, and Z
  *          gyroscope register values.
  *
- * @return  Raw gyroscope data.
+ * @retval  HAL status of the gyroscope read operation. The read values are stored in the provided pointer.
  */
-GyroData readRawGyro();
+HAL_StatusTypeDef readRawGyro(GyroData *gyro);
 
-#endif // MPU6050_H
+#endif /* MPU6050_H */
